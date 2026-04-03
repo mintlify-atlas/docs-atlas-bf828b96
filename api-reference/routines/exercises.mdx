@@ -1,0 +1,434 @@
+---
+title: 'Manage routine exercises'
+description: 'Add, list, update, remove, and reorder exercises within a routine.'
+---
+
+<Note>
+  All endpoints on this page require a valid access token. Pass it as `Authorization: Bearer <token>` in the request header.
+</Note>
+
+<Tabs>
+  <Tab title="Add exercise">
+    ## POST /routines/:id/exercises
+
+    Add an exercise to a routine. The exercise is appended after any existing exercises.
+
+    ### Path parameters
+
+    <ParamField path="id" type="string" required>
+      The UUID of the routine. Must be a valid UUID v4.
+    </ParamField>
+
+    ### Request body
+
+    <ParamField body="exercise_id" type="string" required>
+      The UUID of the exercise to add. Must be a valid UUID v4 and belong to the authenticated user.
+    </ParamField>
+
+    <ParamField body="target_sets" type="number" required>
+      The number of sets prescribed for this exercise. Must be an integer of 1 or more.
+    </ParamField>
+
+    <ParamField body="target_reps_min" type="number" required>
+      The lower bound of the target rep range. Must be an integer of 1 or more.
+    </ParamField>
+
+    <ParamField body="target_reps_max" type="number" required>
+      The upper bound of the target rep range. Must be an integer of 1 or more, and must be greater than or equal to `target_reps_min`.
+    </ParamField>
+
+    <ParamField body="target_rest_sec" type="number" required>
+      The prescribed rest period in seconds between sets. Must be an integer of 0 or more.
+    </ParamField>
+
+    <ParamField body="notes" type="string">
+      Optional exercise-specific notes, such as cues or equipment setup. Maximum 2000 characters.
+    </ParamField>
+
+    ### Response
+
+    Returns the newly created routine-exercise entry.
+
+    <ResponseField name="id" type="string" required>
+      The routine-exercise entry's unique identifier (UUID).
+    </ResponseField>
+
+    <ResponseField name="routine_id" type="string" required>
+      The UUID of the parent routine.
+    </ResponseField>
+
+    <ResponseField name="exercise_id" type="string" required>
+      The UUID of the referenced exercise.
+    </ResponseField>
+
+    <ResponseField name="target_sets" type="number" required>
+      The number of prescribed sets.
+    </ResponseField>
+
+    <ResponseField name="target_reps_min" type="number" required>
+      The lower bound of the target rep range.
+    </ResponseField>
+
+    <ResponseField name="target_reps_max" type="number" required>
+      The upper bound of the target rep range.
+    </ResponseField>
+
+    <ResponseField name="target_rest_sec" type="number" required>
+      The prescribed rest period in seconds.
+    </ResponseField>
+
+    <ResponseField name="order_index" type="number" required>
+      The zero-based position of this exercise within the routine.
+    </ResponseField>
+
+    <ResponseField name="notes" type="string">
+      Exercise-specific notes, or `null` if none were provided.
+    </ResponseField>
+
+    ### Example
+
+    ```bash
+    curl --request POST \
+      --url http://localhost:3000/routines/a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d/exercises \
+      --header 'Authorization: Bearer <token>' \
+      --header 'Content-Type: application/json' \
+      --data '{
+        "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+        "target_sets": 4,
+        "target_reps_min": 4,
+        "target_reps_max": 6,
+        "target_rest_sec": 180,
+        "notes": "Focus on bar path — tuck elbows slightly."
+      }'
+    ```
+
+    ```json
+    {
+      "data": {
+        "id": "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
+        "routine_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+        "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+        "target_sets": 4,
+        "target_reps_min": 4,
+        "target_reps_max": 6,
+        "target_rest_sec": 180,
+        "order_index": 0,
+        "notes": "Focus on bar path — tuck elbows slightly."
+      }
+    }
+    ```
+
+    ### Error responses
+
+    | Status | Error | Description |
+    |--------|-------|-------------|
+    | `401` | `Unauthorized` | Missing or invalid access token. |
+    | `404` | `Not Found` | No routine or exercise with the given ID exists for your account. |
+    | `409` | `Conflict` | This exercise is already in the routine. |
+  </Tab>
+
+  <Tab title="List exercises">
+    ## GET /routines/:id/exercises
+
+    Return all exercises in a routine, ordered by `order_index` ascending.
+
+    ### Path parameters
+
+    <ParamField path="id" type="string" required>
+      The UUID of the routine. Must be a valid UUID v4.
+    </ParamField>
+
+    ### Response
+
+    An array of routine-exercise entries ordered by position.
+
+    <ResponseField name="[]" type="object[]" required>
+      <Expandable title="properties" defaultOpen>
+        <ResponseField name="id" type="string" required>
+          The routine-exercise entry's unique identifier (UUID).
+        </ResponseField>
+
+        <ResponseField name="routine_id" type="string" required>
+          The UUID of the parent routine.
+        </ResponseField>
+
+        <ResponseField name="exercise_id" type="string" required>
+          The UUID of the referenced exercise.
+        </ResponseField>
+
+        <ResponseField name="target_sets" type="number" required>
+          The number of prescribed sets.
+        </ResponseField>
+
+        <ResponseField name="target_reps_min" type="number" required>
+          The lower bound of the target rep range.
+        </ResponseField>
+
+        <ResponseField name="target_reps_max" type="number" required>
+          The upper bound of the target rep range.
+        </ResponseField>
+
+        <ResponseField name="target_rest_sec" type="number" required>
+          The prescribed rest period in seconds.
+        </ResponseField>
+
+        <ResponseField name="order_index" type="number" required>
+          The zero-based position of this exercise within the routine.
+        </ResponseField>
+
+        <ResponseField name="notes" type="string">
+          Exercise-specific notes, or `null` if none were provided.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    ### Example
+
+    ```bash
+    curl --request GET \
+      --url http://localhost:3000/routines/a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d/exercises \
+      --header 'Authorization: Bearer <token>'
+    ```
+
+    ```json
+    {
+      "data": [
+        {
+          "id": "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
+          "routine_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+          "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+          "target_sets": 4,
+          "target_reps_min": 4,
+          "target_reps_max": 6,
+          "target_rest_sec": 180,
+          "order_index": 0,
+          "notes": "Focus on bar path — tuck elbows slightly."
+        },
+        {
+          "id": "d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a",
+          "routine_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+          "exercise_id": "029f9a3b-2c4d-8e5f-0a1b-3c4d5e6f7a8b",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_rest_sec": 90,
+          "order_index": 1,
+          "notes": null
+        }
+      ]
+    }
+    ```
+
+    ### Error responses
+
+    | Status | Error | Description |
+    |--------|-------|-------------|
+    | `401` | `Unauthorized` | Missing or invalid access token. |
+    | `404` | `Not Found` | No routine with the given ID exists for your account. |
+  </Tab>
+
+  <Tab title="Update exercise">
+    ## PATCH /routines/:id/exercises/:exerciseId
+
+    Update the configuration of an exercise within a routine. All fields are optional — only the fields you provide are changed.
+
+    ### Path parameters
+
+    <ParamField path="id" type="string" required>
+      The UUID of the routine. Must be a valid UUID v4.
+    </ParamField>
+
+    <ParamField path="exerciseId" type="string" required>
+      The UUID of the routine-exercise entry to update. Must be a valid UUID v4.
+    </ParamField>
+
+    ### Request body
+
+    <ParamField body="target_sets" type="number">
+      The number of prescribed sets. Must be an integer of 1 or more.
+    </ParamField>
+
+    <ParamField body="target_reps_min" type="number">
+      The lower bound of the target rep range. Must be an integer of 1 or more.
+    </ParamField>
+
+    <ParamField body="target_reps_max" type="number">
+      The upper bound of the target rep range. Must be an integer of 1 or more. When both `target_reps_min` and `target_reps_max` are provided, `target_reps_max` must be greater than or equal to `target_reps_min`.
+    </ParamField>
+
+    <ParamField body="target_rest_sec" type="number">
+      The prescribed rest period in seconds. Must be an integer of 0 or more.
+    </ParamField>
+
+    <ParamField body="notes" type="string">
+      Exercise-specific notes. Maximum 2000 characters. Pass `null` to clear existing notes.
+    </ParamField>
+
+    ### Response
+
+    Returns the updated routine-exercise entry.
+
+    <ResponseField name="id" type="string" required>
+      The routine-exercise entry's unique identifier (UUID).
+    </ResponseField>
+
+    <ResponseField name="routine_id" type="string" required>
+      The UUID of the parent routine.
+    </ResponseField>
+
+    <ResponseField name="exercise_id" type="string" required>
+      The UUID of the referenced exercise.
+    </ResponseField>
+
+    <ResponseField name="target_sets" type="number" required>
+      The number of prescribed sets.
+    </ResponseField>
+
+    <ResponseField name="target_reps_min" type="number" required>
+      The lower bound of the target rep range.
+    </ResponseField>
+
+    <ResponseField name="target_reps_max" type="number" required>
+      The upper bound of the target rep range.
+    </ResponseField>
+
+    <ResponseField name="target_rest_sec" type="number" required>
+      The prescribed rest period in seconds.
+    </ResponseField>
+
+    <ResponseField name="order_index" type="number" required>
+      The zero-based position of this exercise within the routine.
+    </ResponseField>
+
+    <ResponseField name="notes" type="string">
+      Exercise-specific notes, or `null` if none are set.
+    </ResponseField>
+
+    ### Example
+
+    ```bash
+    curl --request PATCH \
+      --url http://localhost:3000/routines/a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d/exercises/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f \
+      --header 'Authorization: Bearer <token>' \
+      --header 'Content-Type: application/json' \
+      --data '{
+        "target_sets": 5,
+        "target_reps_min": 3,
+        "target_reps_max": 5,
+        "target_rest_sec": 240
+      }'
+    ```
+
+    ```json
+    {
+      "data": {
+        "id": "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
+        "routine_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+        "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+        "target_sets": 5,
+        "target_reps_min": 3,
+        "target_reps_max": 5,
+        "target_rest_sec": 240,
+        "order_index": 0,
+        "notes": "Focus on bar path — tuck elbows slightly."
+      }
+    }
+    ```
+
+    ### Error responses
+
+    | Status | Error | Description |
+    |--------|-------|-------------|
+    | `401` | `Unauthorized` | Missing or invalid access token. |
+    | `404` | `Not Found` | No routine or exercise with the given ID exists for your account. |
+  </Tab>
+
+  <Tab title="Remove exercise">
+    ## DELETE /routines/:id/exercises/:exerciseId
+
+    Remove an exercise from a routine. The remaining exercises retain their `order_index` values and are not automatically compacted.
+
+    ### Path parameters
+
+    <ParamField path="id" type="string" required>
+      The UUID of the routine. Must be a valid UUID v4.
+    </ParamField>
+
+    <ParamField path="exerciseId" type="string" required>
+      The UUID of the routine-exercise entry to remove. Must be a valid UUID v4.
+    </ParamField>
+
+    ### Response
+
+    Returns `204 No Content` on success. The response body is empty.
+
+    ### Example
+
+    ```bash
+    curl --request DELETE \
+      --url http://localhost:3000/routines/a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d/exercises/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f \
+      --header 'Authorization: Bearer <token>'
+    ```
+
+    ### Error responses
+
+    | Status | Error | Description |
+    |--------|-------|-------------|
+    | `401` | `Unauthorized` | Missing or invalid access token. |
+    | `404` | `Not Found` | No routine or exercise with the given ID exists for your account. |
+  </Tab>
+
+  <Tab title="Reorder exercises">
+    ## POST /routines/:id/exercises/reorder
+
+    Set new `order_index` values for exercises within a routine in a single atomic operation.
+
+    ### Path parameters
+
+    <ParamField path="id" type="string" required>
+      The UUID of the routine. Must be a valid UUID v4.
+    </ParamField>
+
+    ### Request body
+
+    <ParamField body="exercises" type="object[]" required>
+      A non-empty array of reorder entries. All `id` values and all `order_index` values within the array must be unique.
+
+      <Expandable title="properties">
+        <ParamField body="exercises[].id" type="string" required>
+          The UUID of the routine-exercise entry to reposition.
+        </ParamField>
+
+        <ParamField body="exercises[].order_index" type="number" required>
+          The new zero-based position for this entry. Must be an integer of 0 or more.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+
+    ### Response
+
+    Returns `200 OK` on success. The response body is empty.
+
+    ### Example
+
+    ```bash
+    curl --request POST \
+      --url http://localhost:3000/routines/a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d/exercises/reorder \
+      --header 'Authorization: Bearer <token>' \
+      --header 'Content-Type: application/json' \
+      --data '{
+        "exercises": [
+          { "id": "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f", "order_index": 1 },
+          { "id": "d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a", "order_index": 0 }
+        ]
+      }'
+    ```
+
+    ### Error responses
+
+    | Status | Error | Description |
+    |--------|-------|-------------|
+    | `401` | `Unauthorized` | Missing or invalid access token. |
+    | `404` | `Not Found` | No routine with the given ID exists for your account. |
+  </Tab>
+</Tabs>

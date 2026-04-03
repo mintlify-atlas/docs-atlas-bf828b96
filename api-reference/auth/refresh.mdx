@@ -1,0 +1,56 @@
+---
+title: 'Refresh token'
+description: 'Exchange a valid refresh token for a new access token and refresh token. The old refresh token is revoked immediately (token rotation).'
+api: 'POST /auth/refresh'
+---
+
+## Request body
+
+<ParamField body="refreshToken" type="string" required>
+  The refresh token issued by `POST /auth/login` or `POST /auth/register`. Must be a valid, non-expired, non-revoked token.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="object" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="accessToken" type="string" required>
+      A new signed JWT for authenticating subsequent requests. Valid for **15 minutes**.
+    </ResponseField>
+
+    <ResponseField name="refreshToken" type="string" required>
+      A new signed JWT to use on the next refresh. Valid for **7 days**. The previous refresh token is immediately revoked.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Warning>
+  **Token rotation is enforced.** The moment you call this endpoint, the refresh token you sent is permanently revoked. You must use the new refresh token returned in this response for all future refreshes. Reusing the old token will result in a `401` error.
+</Warning>
+
+## Example
+
+```bash
+curl --request POST \
+  --url http://localhost:3000/auth/refresh \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+
+```json
+{
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | `Bad Request` | `refreshToken` field is missing from the request body. |
+| `401` | `Unauthorized` | The token is invalid, expired, or has already been revoked. |

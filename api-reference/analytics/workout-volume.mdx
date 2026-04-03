@@ -1,0 +1,65 @@
+---
+title: 'Get workout volume'
+description: 'Returns the total training volume for a workout, calculated as the sum of weight × reps across all non-warmup sets in that session.'
+api: 'GET /analytics/workouts/{workoutId}/volume'
+---
+
+<Note>
+  This endpoint requires a valid access token. Pass it as `Authorization: Bearer <token>` in the request header.
+</Note>
+
+<Info>
+  **Volume formula**
+
+  ```
+  total_volume = SUM(weight × reps)
+  ```
+
+  Only non-warmup sets (`is_warmup = false`) contribute to the total. Warmup sets are excluded because they use sub-maximal weights that would skew the measure of actual training load.
+
+  A workout with no non-warmup sets returns `total_volume: 0`.
+</Info>
+
+## Path parameters
+
+<ParamField path="workoutId" type="string" required>
+  The UUID of the workout to calculate volume for. Must be a valid UUID v4 and belong to the authenticated user.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="object" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="workout_id" type="string" required>
+      The UUID of the workout.
+    </ResponseField>
+
+    <ResponseField name="total_volume" type="number" required>
+      Total training volume for the workout: `SUM(weight × reps)` across all non-warmup sets. Returns `0` if the workout contains no non-warmup sets.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+```bash
+curl --request GET \
+  --url http://localhost:3000/analytics/workouts/0a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d/volume \
+  --header 'Authorization: Bearer <token>'
+```
+
+```json
+{
+  "data": {
+    "workout_id": "0a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d",
+    "total_volume": 12750
+  }
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | `Unauthorized` | Missing or invalid access token. |
+| `404` | `Not Found` | No workout with the given ID exists for your account. |

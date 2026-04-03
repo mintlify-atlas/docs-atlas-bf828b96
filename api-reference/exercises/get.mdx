@@ -1,0 +1,84 @@
+---
+title: 'Get exercise'
+description: 'Retrieve a single exercise by ID. Returns the exercise regardless of its archived status.'
+api: 'GET /exercises/{id}'
+---
+
+<Note>
+  This endpoint requires a valid access token. Pass it as `Authorization: Bearer <token>` in the request header.
+</Note>
+
+## Path parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the exercise to retrieve. Must be a valid UUID v4.
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="string" required>
+  The exercise's unique identifier (UUID).
+</ResponseField>
+
+<ResponseField name="user_id" type="string" required>
+  The UUID of the user who owns this exercise.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  The exercise name.
+</ResponseField>
+
+<ResponseField name="category" type="string" required>
+  The exercise category. One of: `chest`, `back`, `legs`, `shoulders`, `arms`, `core`, `cardio`, `other`.
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  The movement type. One of: `compound`, `isolation`, `cardio`, `stretching`.
+</ResponseField>
+
+<ResponseField name="notes" type="string">
+  Free-text notes, or `null` if none were provided.
+</ResponseField>
+
+<ResponseField name="is_archived" type="boolean" required>
+  Whether the exercise has been archived.
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  ISO 8601 timestamp of when the exercise was created.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string" required>
+  ISO 8601 timestamp of the last update.
+</ResponseField>
+
+## Example
+
+```bash
+curl --request GET \
+  --url http://localhost:3000/exercises/018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a \
+  --header 'Authorization: Bearer <token>'
+```
+
+```json
+{
+  "data": {
+    "id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+    "user_id": "018e1a2b-3c4d-5e6f-7a8b-9c0d1e2f3a4b",
+    "name": "Barbell Back Squat",
+    "category": "legs",
+    "type": "compound",
+    "notes": "Keep chest up, drive knees out.",
+    "is_archived": false,
+    "created_at": "2026-04-03T10:00:00.000Z",
+    "updated_at": "2026-04-03T10:00:00.000Z"
+  }
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | `Unauthorized` | Missing or invalid access token. |
+| `404` | `Not Found` | No exercise with the given ID exists for your account. |

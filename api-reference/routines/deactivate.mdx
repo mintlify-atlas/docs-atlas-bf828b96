@@ -1,0 +1,38 @@
+---
+title: 'Deactivate routine'
+description: 'Soft-delete a routine by marking it as inactive. All workout history is preserved.'
+api: 'DELETE /routines/{id}'
+---
+
+<Note>
+  This endpoint requires a valid access token. Pass it as `Authorization: Bearer <token>` in the request header.
+</Note>
+
+<Warning>
+  Deactivating is a soft delete — it sets `is_active` to `false` and hides the routine from the list response. All workouts previously logged against this routine are preserved and remain accessible in workout history. This action cannot be undone through the API.
+</Warning>
+
+## Path parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the routine to deactivate. Must be a valid UUID v4.
+</ParamField>
+
+## Response
+
+Returns `204 No Content` on success. The response body is empty.
+
+## Example
+
+```bash
+curl --request DELETE \
+  --url http://localhost:3000/routines/a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d \
+  --header 'Authorization: Bearer <token>'
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | `Unauthorized` | Missing or invalid access token. |
+| `404` | `Not Found` | No routine with the given ID exists for your account. |

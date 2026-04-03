@@ -1,0 +1,478 @@
+---
+title: 'Manage sets'
+description: 'Log, list, retrieve, update, and delete sets within a workout.'
+---
+
+<Note>
+  All endpoints on this page require a valid access token. Pass it as `Authorization: Bearer <token>` in the request header.
+</Note>
+
+Sets are the atomic unit of training data — a single exercise performed for a given weight and reps within a workout. Sets can only be created or modified while the parent workout is active (not yet finished). Once a workout is [finished](/api-reference/workouts/finish), all its sets become immutable.
+
+<Tabs>
+  <Tab title="Log a set">
+    ## POST /workouts/:workoutId/sets
+
+    Log a new set within an active workout.
+
+    <Warning>
+      Sets can only be added to active (unfinished) workouts. Attempting to log a set on a finished workout returns `409 Conflict`.
+    </Warning>
+
+    ### Path parameters
+
+    <ParamField path="workoutId" type="string" required>
+      The UUID of the workout to log the set in. Must be a valid UUID v4.
+    </ParamField>
+
+    ### Request body
+
+    <ParamField body="exercise_id" type="string" required>
+      The UUID of the exercise being performed. Must belong to the authenticated user and must not be archived.
+    </ParamField>
+
+    <ParamField body="weight" type="number" required>
+      The weight used. Must be between `0` and `9999.99`. Use `0` for bodyweight exercises.
+    </ParamField>
+
+    <Note>
+      `set_number` is assigned automatically by the server — it increments from the last set logged for that exercise in the workout. You do not need to provide it.
+    </Note>
+
+    <ParamField body="reps" type="number" required>
+      The number of repetitions performed. Must be a positive integer.
+    </ParamField>
+
+    <ParamField body="rpe" type="number">
+      Rate of Perceived Exertion. A decimal between `1` and `10` in `0.5` increments (e.g. `7.5`). Pass `null` to leave unset.
+    </ParamField>
+
+    <ParamField body="is_warmup" type="boolean" default="false">
+      Whether this is a warmup set. Warmup sets are recorded but excluded from volume, PR, and 1RM calculations. Defaults to `false`.
+    </ParamField>
+
+    ### Response
+
+    Returns `201 Created` with the new set object.
+
+    <ResponseField name="id" type="string" required>
+      The set's unique identifier (UUID).
+    </ResponseField>
+
+    <ResponseField name="workout_id" type="string" required>
+      The UUID of the parent workout.
+    </ResponseField>
+
+    <ResponseField name="exercise_id" type="string" required>
+      The UUID of the exercise performed.
+    </ResponseField>
+
+    <ResponseField name="set_number" type="number" required>
+      The set number for this exercise within the workout.
+    </ResponseField>
+
+    <ResponseField name="weight" type="number" required>
+      The weight used.
+    </ResponseField>
+
+    <ResponseField name="reps" type="number" required>
+      The number of repetitions performed.
+    </ResponseField>
+
+    <ResponseField name="rpe" type="number">
+      Rate of Perceived Exertion, or `null` if not recorded.
+    </ResponseField>
+
+    <ResponseField name="is_warmup" type="boolean" required>
+      Whether this is a warmup set.
+    </ResponseField>
+
+    <ResponseField name="created_at" type="string" required>
+      ISO 8601 timestamp of when the set was logged.
+    </ResponseField>
+
+    ### Example
+
+    ```bash
+    curl --request POST \
+      --url http://localhost:3000/workouts/b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e/sets \
+      --header 'Authorization: Bearer <token>' \
+      --header 'Content-Type: application/json' \
+      --data '{
+        "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+        "weight": 100,
+        "reps": 5,
+        "rpe": 7.5,
+        "is_warmup": false
+      }'
+    ```
+
+    ```json
+    {
+      "data": {
+        "id": "d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a",
+        "workout_id": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
+        "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+        "set_number": 1,
+        "weight": 100,
+        "reps": 5,
+        "rpe": 7.5,
+        "is_warmup": false,
+        "created_at": "2026-04-03T09:05:00.000Z"
+      }
+    }
+    ```
+
+    ### Error responses
+
+    | Status | Error | Description |
+    |--------|-------|-------------|
+    | `401` | `Unauthorized` | Missing or invalid access token. |
+    | `404` | `Not Found` | No workout or exercise with the given ID exists for your account. |
+    | `409` | `Conflict` | The workout is already finished, or the exercise is archived. |
+  </Tab>
+
+  <Tab title="List sets">
+    ## GET /workouts/:workoutId/sets
+
+    Return all sets in a workout, ordered by exercise and set number.
+
+    ### Path parameters
+
+    <ParamField path="workoutId" type="string" required>
+      The UUID of the workout. Must be a valid UUID v4.
+    </ParamField>
+
+    ### Response
+
+    Returns an array of set objects ordered by exercise and `set_number` ascending.
+
+    <ResponseField name="[]" type="object[]" required>
+      <Expandable title="properties" defaultOpen>
+        <ResponseField name="id" type="string" required>
+          The set's unique identifier (UUID).
+        </ResponseField>
+
+        <ResponseField name="workout_id" type="string" required>
+          The UUID of the parent workout.
+        </ResponseField>
+
+        <ResponseField name="exercise_id" type="string" required>
+          The UUID of the exercise performed.
+        </ResponseField>
+
+        <ResponseField name="set_number" type="number" required>
+          The set number for this exercise within the workout.
+        </ResponseField>
+
+        <ResponseField name="weight" type="number" required>
+          The weight used.
+        </ResponseField>
+
+        <ResponseField name="reps" type="number" required>
+          The number of repetitions performed.
+        </ResponseField>
+
+        <ResponseField name="rpe" type="number">
+          Rate of Perceived Exertion, or `null` if not recorded.
+        </ResponseField>
+
+        <ResponseField name="is_warmup" type="boolean" required>
+          Whether this is a warmup set.
+        </ResponseField>
+
+        <ResponseField name="created_at" type="string" required>
+          ISO 8601 timestamp of when the set was logged.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    ### Example
+
+    ```bash
+    curl --request GET \
+      --url http://localhost:3000/workouts/b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e/sets \
+      --header 'Authorization: Bearer <token>'
+    ```
+
+    ```json
+    {
+      "data": [
+        {
+          "id": "d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a",
+          "workout_id": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
+          "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+          "set_number": 1,
+          "weight": 60,
+          "reps": 8,
+          "rpe": null,
+          "is_warmup": true,
+          "created_at": "2026-04-03T09:03:00.000Z"
+        },
+        {
+          "id": "e5f6a7b8-c9d0-1e2f-3a4b-5c6d7e8f9a0b",
+          "workout_id": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
+          "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+          "set_number": 2,
+          "weight": 100,
+          "reps": 5,
+          "rpe": 7.5,
+          "is_warmup": false,
+          "created_at": "2026-04-03T09:05:00.000Z"
+        }
+      ]
+    }
+    ```
+
+    ### Error responses
+
+    | Status | Error | Description |
+    |--------|-------|-------------|
+    | `401` | `Unauthorized` | Missing or invalid access token. |
+    | `404` | `Not Found` | No workout with the given ID exists for your account. |
+  </Tab>
+
+  <Tab title="Get a set">
+    ## GET /workouts/:workoutId/sets/:id
+
+    Return a single set by its ID.
+
+    ### Path parameters
+
+    <ParamField path="workoutId" type="string" required>
+      The UUID of the workout. Must be a valid UUID v4.
+    </ParamField>
+
+    <ParamField path="id" type="string" required>
+      The UUID of the set to retrieve. Must be a valid UUID v4.
+    </ParamField>
+
+    ### Response
+
+    Returns the set object.
+
+    <ResponseField name="id" type="string" required>
+      The set's unique identifier (UUID).
+    </ResponseField>
+
+    <ResponseField name="workout_id" type="string" required>
+      The UUID of the parent workout.
+    </ResponseField>
+
+    <ResponseField name="exercise_id" type="string" required>
+      The UUID of the exercise performed.
+    </ResponseField>
+
+    <ResponseField name="set_number" type="number" required>
+      The set number for this exercise within the workout.
+    </ResponseField>
+
+    <ResponseField name="weight" type="number" required>
+      The weight used.
+    </ResponseField>
+
+    <ResponseField name="reps" type="number" required>
+      The number of repetitions performed.
+    </ResponseField>
+
+    <ResponseField name="rpe" type="number">
+      Rate of Perceived Exertion, or `null` if not recorded.
+    </ResponseField>
+
+    <ResponseField name="is_warmup" type="boolean" required>
+      Whether this is a warmup set.
+    </ResponseField>
+
+    <ResponseField name="created_at" type="string" required>
+      ISO 8601 timestamp of when the set was logged.
+    </ResponseField>
+
+    ### Example
+
+    ```bash
+    curl --request GET \
+      --url http://localhost:3000/workouts/b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e/sets/d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a \
+      --header 'Authorization: Bearer <token>'
+    ```
+
+    ```json
+    {
+      "data": {
+        "id": "d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a",
+        "workout_id": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
+        "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+        "set_number": 1,
+        "weight": 100,
+        "reps": 5,
+        "rpe": 7.5,
+        "is_warmup": false,
+        "created_at": "2026-04-03T09:05:00.000Z"
+      }
+    }
+    ```
+
+    ### Error responses
+
+    | Status | Error | Description |
+    |--------|-------|-------------|
+    | `401` | `Unauthorized` | Missing or invalid access token. |
+    | `404` | `Not Found` | No workout or set with the given ID exists for your account. |
+  </Tab>
+
+  <Tab title="Update a set">
+    ## PATCH /workouts/:workoutId/sets/:id
+
+    Update one or more fields of a set. All fields are optional — only the fields you provide are changed. At least one field must be included.
+
+    <Warning>
+      Sets belonging to a finished workout cannot be modified. This returns `409 Conflict`.
+    </Warning>
+
+    ### Path parameters
+
+    <ParamField path="workoutId" type="string" required>
+      The UUID of the workout. Must be a valid UUID v4.
+    </ParamField>
+
+    <ParamField path="id" type="string" required>
+      The UUID of the set to update. Must be a valid UUID v4.
+    </ParamField>
+
+    ### Request body
+
+    At least one of the following fields must be provided. `exercise_id` cannot be changed after a set is created.
+
+    <ParamField body="weight" type="number">
+      The weight used. Must be between `0` and `9999.99`.
+    </ParamField>
+
+    <ParamField body="reps" type="number">
+      The number of repetitions. Must be a positive integer.
+    </ParamField>
+
+    <ParamField body="rpe" type="number">
+      Rate of Perceived Exertion. A decimal between `1` and `10` in `0.5` increments. Pass `null` to clear.
+    </ParamField>
+
+    <ParamField body="is_warmup" type="boolean">
+      Whether this is a warmup set.
+    </ParamField>
+
+    ### Response
+
+    Returns `200 OK` with the updated set object.
+
+    <ResponseField name="id" type="string" required>
+      The set's unique identifier (UUID).
+    </ResponseField>
+
+    <ResponseField name="workout_id" type="string" required>
+      The UUID of the parent workout.
+    </ResponseField>
+
+    <ResponseField name="exercise_id" type="string" required>
+      The UUID of the exercise performed.
+    </ResponseField>
+
+    <ResponseField name="set_number" type="number" required>
+      The set number for this exercise within the workout.
+    </ResponseField>
+
+    <ResponseField name="weight" type="number" required>
+      The weight used.
+    </ResponseField>
+
+    <ResponseField name="reps" type="number" required>
+      The number of repetitions performed.
+    </ResponseField>
+
+    <ResponseField name="rpe" type="number">
+      Rate of Perceived Exertion, or `null` if not recorded.
+    </ResponseField>
+
+    <ResponseField name="is_warmup" type="boolean" required>
+      Whether this is a warmup set.
+    </ResponseField>
+
+    <ResponseField name="created_at" type="string" required>
+      ISO 8601 timestamp of when the set was originally logged.
+    </ResponseField>
+
+    ### Example
+
+    ```bash
+    curl --request PATCH \
+      --url http://localhost:3000/workouts/b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e/sets/d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a \
+      --header 'Authorization: Bearer <token>' \
+      --header 'Content-Type: application/json' \
+      --data '{
+        "weight": 102.5,
+        "rpe": 8
+      }'
+    ```
+
+    ```json
+    {
+      "data": {
+        "id": "d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a",
+        "workout_id": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
+        "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+        "set_number": 1,
+        "weight": 102.5,
+        "reps": 5,
+        "rpe": 8,
+        "is_warmup": false,
+        "created_at": "2026-04-03T09:05:00.000Z"
+      }
+    }
+    ```
+
+    ### Error responses
+
+    | Status | Error | Description |
+    |--------|-------|-------------|
+    | `401` | `Unauthorized` | Missing or invalid access token. |
+    | `404` | `Not Found` | No workout or set with the given ID exists for your account. |
+    | `409` | `Conflict` | The workout is already finished — sets are immutable. |
+  </Tab>
+
+  <Tab title="Delete a set">
+    ## DELETE /workouts/:workoutId/sets/:id
+
+    Delete a set from a workout. Only sets in active (unfinished) workouts can be deleted.
+
+    <Warning>
+      This operation permanently removes the set record. It cannot be undone.
+    </Warning>
+
+    ### Path parameters
+
+    <ParamField path="workoutId" type="string" required>
+      The UUID of the workout. Must be a valid UUID v4.
+    </ParamField>
+
+    <ParamField path="id" type="string" required>
+      The UUID of the set to delete. Must be a valid UUID v4.
+    </ParamField>
+
+    ### Response
+
+    Returns `204 No Content` on success. The response body is empty.
+
+    ### Example
+
+    ```bash
+    curl --request DELETE \
+      --url http://localhost:3000/workouts/b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e/sets/d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a \
+      --header 'Authorization: Bearer <token>'
+    ```
+
+    ### Error responses
+
+    | Status | Error | Description |
+    |--------|-------|-------------|
+    | `401` | `Unauthorized` | Missing or invalid access token. |
+    | `404` | `Not Found` | No workout or set with the given ID exists for your account. |
+    | `409` | `Conflict` | The workout is already finished — sets cannot be deleted. |
+  </Tab>
+</Tabs>

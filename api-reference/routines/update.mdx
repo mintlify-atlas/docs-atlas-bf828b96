@@ -1,0 +1,94 @@
+---
+title: 'Update routine'
+description: 'Update the name or description of an existing routine.'
+api: 'PATCH /routines/{id}'
+---
+
+<Note>
+  This endpoint requires a valid access token. Pass it as `Authorization: Bearer <token>` in the request header.
+</Note>
+
+## Path parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the routine to update. Must be a valid UUID v4.
+</ParamField>
+
+## Request body
+
+All fields are optional. Only the fields you provide are updated.
+
+<ParamField body="name" type="string">
+  A new name for the routine. Must be between 1 and 150 characters. Leading and trailing whitespace is trimmed. Must be unique per user.
+</ParamField>
+
+<ParamField body="description" type="string">
+  A new description for the routine. Maximum 2000 characters. Pass `null` to clear an existing description.
+</ParamField>
+
+## Response
+
+Returns the updated routine object.
+
+<ResponseField name="id" type="string" required>
+  The routine's unique identifier (UUID).
+</ResponseField>
+
+<ResponseField name="user_id" type="string" required>
+  The UUID of the user who owns this routine.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  The routine name.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  The routine description, or `null` if none is set.
+</ResponseField>
+
+<ResponseField name="is_active" type="boolean" required>
+  Whether the routine is active.
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  ISO 8601 timestamp of when the routine was created.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string" required>
+  ISO 8601 timestamp of this update.
+</ResponseField>
+
+## Example
+
+```bash
+curl --request PATCH \
+  --url http://localhost:3000/routines/a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d \
+  --header 'Authorization: Bearer <token>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": "Push Day A (Heavy)",
+    "description": "Chest, shoulders, and triceps — max strength focus."
+  }'
+```
+
+```json
+{
+  "data": {
+    "id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "user_id": "018e1a2b-3c4d-5e6f-7a8b-9c0d1e2f3a4b",
+    "name": "Push Day A (Heavy)",
+    "description": "Chest, shoulders, and triceps — max strength focus.",
+    "is_active": true,
+    "created_at": "2026-04-03T10:00:00.000Z",
+    "updated_at": "2026-04-03T11:30:00.000Z"
+  }
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | `Unauthorized` | Missing or invalid access token. |
+| `404` | `Not Found` | No routine with the given ID exists for your account. |
+| `409` | `Conflict` | A routine with the new name already exists for your account. |

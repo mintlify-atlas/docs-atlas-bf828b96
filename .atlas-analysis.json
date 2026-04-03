@@ -1,23 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "Overload API",
+  "projectType": "api-service",
+  "projectName": "Overload API",
+  "projectDescription": "A REST API for advanced strength training tracking built around progressive overload, providing workout management, set logging, PR detection, volume calculation, and 1RM estimation.",
   "theme": "luma",
-  "colors": {
-    "primary": "#94cb04",
-    "light": "#545454"
-  },
-  "favicon": "https://media.brand.dev/288cc7c4-5cef-4376-950b-bdf0083eedae.png",
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/JosepRivera/overload-api"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/JosepRivera/overload-api"
-    }
-  },
+  "primaryColor": "#94cb04",
+  "lightColor": "#545454",
+  "darkColor": null,
   "navigation": {
     "tabs": [
       {
@@ -105,5 +93,54 @@
         ]
       }
     ]
-  }
+  },
+  "keyFeatures": [
+    "JWT + refresh token authentication with token rotation",
+    "Personal exercise catalog with soft-delete (archiving)",
+    "Routine (workout template) management with exercise ordering",
+    "Real-time workout session tracking with active workout enforcement",
+    "Set logging with warmup set support and RPE tracking",
+    "Automatic PR detection (weight PR and volume PR per exercise)",
+    "1RM estimation using the Epley formula",
+    "Training volume calculation per workout and exercise",
+    "Historical progression tracking per exercise",
+    "Full Docker-based development environment with hot-reload"
+  ],
+  "publicApiSurface": [
+    "POST /auth/register",
+    "POST /auth/login",
+    "POST /auth/refresh",
+    "POST /auth/logout",
+    "POST /exercises",
+    "GET /exercises",
+    "GET /exercises/:id",
+    "PATCH /exercises/:id",
+    "PATCH /exercises/:id/archive",
+    "POST /routines",
+    "GET /routines",
+    "GET /routines/:id",
+    "PATCH /routines/:id",
+    "DELETE /routines/:id",
+    "POST /routines/:id/exercises",
+    "GET /routines/:id/exercises",
+    "PATCH /routines/:id/exercises/:exerciseId",
+    "DELETE /routines/:id/exercises/:exerciseId",
+    "POST /routines/:id/exercises/reorder",
+    "POST /workouts",
+    "GET /workouts",
+    "GET /workouts/active",
+    "GET /workouts/:id",
+    "PATCH /workouts/:id",
+    "POST /workouts/:id/finish",
+    "DELETE /workouts/:id",
+    "POST /workouts/:workoutId/sets",
+    "GET /workouts/:workoutId/sets",
+    "GET /workouts/:workoutId/sets/:id",
+    "PATCH /workouts/:workoutId/sets/:id",
+    "DELETE /workouts/:workoutId/sets/:id",
+    "GET /analytics/exercises/:exerciseId/prs",
+    "GET /analytics/exercises/:exerciseId/1rm",
+    "GET /analytics/exercises/:exerciseId/progression",
+    "GET /analytics/workouts/:workoutId/volume"
+  ]
 }

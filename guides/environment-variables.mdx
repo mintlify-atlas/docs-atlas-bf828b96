@@ -1,0 +1,107 @@
+---
+title: "Environment variables"
+description: "Reference for all environment variables used by the Overload API."
+---
+
+The API reads its configuration from environment variables at startup. Zod validates every variable — the server will refuse to start if a required value is missing or malformed.
+
+## Setup
+
+Copy the example file and fill in the values before starting the server:
+
+```bash
+cp .env.example .env
+```
+
+<Warning>
+  Never commit `.env` to version control. It is listed in `.gitignore` by default. Treat `JWT_SECRET` and `POSTGRES_PASSWORD` as secrets — keep them out of logs, issue trackers, and chat tools.
+</Warning>
+
+## .env.example
+
+```bash
+# PostgreSQL
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+POSTGRES_DB=
+POSTGRES_PORT=
+
+# App
+PORT=3000
+NODE_ENV=development
+
+# JWT
+JWT_SECRET=
+JWT_ACCESS_TOKEN_TTL=15m
+JWT_REFRESH_TOKEN_TTL=7d
+
+# CORS
+CORS_ORIGIN=http://localhost:5173
+
+# Security
+BCRYPT_ROUNDS=10
+```
+
+## Variable reference
+
+### Database
+
+| Variable            | Description                                      | Example           |
+| ------------------- | ------------------------------------------------ | ----------------- |
+| `POSTGRES_USER`     | PostgreSQL username                              | `overload_user`   |
+| `POSTGRES_PASSWORD` | PostgreSQL password                              | —                 |
+| `POSTGRES_DB`       | Database name                                    | `overload_db`     |
+| `POSTGRES_PORT`     | PostgreSQL port exposed on the host              | `5432`            |
+
+<Warning>
+  `POSTGRES_PASSWORD` is a secret. Use a strong, randomly generated value in all environments.
+</Warning>
+
+<Note>
+  `DATABASE_URL` is constructed automatically by Docker Compose using the four variables above. You only need to set it manually if you are running the API outside of Docker:
+
+  ```
+  postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:<POSTGRES_PORT>/<POSTGRES_DB>?schema=public
+  ```
+</Note>
+
+### Application
+
+| Variable   | Description                            | Default       | Accepted values                  |
+| ---------- | -------------------------------------- | ------------- | -------------------------------- |
+| `PORT`     | Port the API listens on                | `3000`        | Any valid port number            |
+| `NODE_ENV` | Runtime environment                    | `development` | `development`, `production`, `test` |
+
+### JWT
+
+| Variable                | Description                                       | Default |
+| ----------------------- | ------------------------------------------------- | ------- |
+| `JWT_SECRET`            | Secret key used to sign access tokens             | —       |
+| `JWT_ACCESS_TOKEN_TTL`  | Lifetime of access tokens                         | `15m`   |
+| `JWT_REFRESH_TOKEN_TTL` | Lifetime of refresh tokens                        | `7d`    |
+
+<Warning>
+  `JWT_SECRET` must be at least 32 characters long — the server rejects shorter values at startup. Use a cryptographically random string, for example:
+
+  ```bash
+  openssl rand -hex 32
+  ```
+</Warning>
+
+Token TTL values use a compact duration format: `15m`, `7d`, `1h`, `500ms`. Spaces are allowed and case is ignored (`15M` and `15m` are equivalent).
+
+### CORS
+
+| Variable      | Description                     | Default                  |
+| ------------- | ------------------------------- | ------------------------ |
+| `CORS_ORIGIN` | Allowed CORS origin for the API | `http://localhost:5173`  |
+
+Set this to the URL of your frontend application. For production, use your deployed frontend URL.
+
+### Security
+
+| Variable        | Description                                    | Default | Range  |
+| --------------- | ---------------------------------------------- | ------- | ------ |
+| `BCRYPT_ROUNDS` | bcrypt cost factor for password hashing        | `10`    | 4 – 15 |
+
+Higher values increase hash time and security. The E2E test environment uses `4` to keep tests fast. The default of `10` is a good balance for development and production.

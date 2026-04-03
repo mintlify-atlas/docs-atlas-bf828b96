@@ -1,0 +1,51 @@
+---
+title: 'Logout'
+description: 'Revoke a refresh token, ending the session associated with it. Other active sessions are unaffected.'
+api: 'POST /auth/logout'
+---
+
+## Request body
+
+<ParamField body="refreshToken" type="string" required>
+  The refresh token for the session you want to terminate. Must be a valid, non-expired, non-revoked token.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="object" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="message" type="string" required>
+      Confirmation message. Always `"Logged out successfully"`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  This endpoint only revokes the specific refresh token provided. Any other active sessions (other devices or browsers) remain valid. To log out from all sessions, call this endpoint once for each active refresh token.
+</Note>
+
+## Example
+
+```bash
+curl --request POST \
+  --url http://localhost:3000/auth/logout \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+
+```json
+{
+  "data": {
+    "message": "Logged out successfully"
+  }
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | `Bad Request` | `refreshToken` field is missing from the request body. |
+| `401` | `Unauthorized` | The token is invalid, expired, or has already been revoked. |

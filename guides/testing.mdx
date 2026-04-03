@@ -1,0 +1,87 @@
+---
+title: "Testing"
+description: "How to run unit tests and end-to-end tests for the Overload API."
+---
+
+The Overload API has two test suites: **unit tests** that run locally with Vitest, and **E2E tests** that run in an isolated Docker environment.
+
+## Available commands
+
+| Command              | Description                                          |
+| -------------------- | ---------------------------------------------------- |
+| `pnpm test`          | Run unit tests once                                  |
+| `pnpm test:watch`    | Run unit tests in watch mode (re-runs on file change) |
+| `pnpm test:cov`      | Run unit tests with a V8 coverage report             |
+| `pnpm test:e2e`      | Run E2E tests in Docker                              |
+| `pnpm test:e2e:down` | Stop and remove E2E test containers and volumes      |
+
+## Unit tests
+
+Unit tests live alongside the source code in `src/**/__tests__/**/*.spec.ts`. They run directly on your machine using Vitest — no Docker required.
+
+<CodeGroup>
+
+```bash Run once
+pnpm test
+```
+
+```bash Watch mode
+pnpm test:watch
+```
+
+```bash With coverage
+pnpm test:cov
+```
+
+</CodeGroup>
+
+### Coverage
+
+Coverage is collected with V8 and scoped to service files:
+
+- **Included:** `src/**/*.service.ts`
+- **Excluded:** `src/prisma/`, `src/main.ts`, `src/app.module.ts`
+
+Running `pnpm test:cov` generates a coverage report in the terminal. Use this to identify untested branches in service logic before opening a pull request.
+
+## E2E tests
+
+E2E tests live in `test/**/*.e2e-spec.ts` and run against a real PostgreSQL database inside Docker. The test environment is fully isolated from your development environment.
+
+```bash
+pnpm test:e2e
+```
+
+### How it works
+
+`pnpm test:e2e` starts the services defined in `docker-compose.test.yml`:
+
+| Container               | Description                                          |
+| ----------------------- | ---------------------------------------------------- |
+| `overload-postgres-test` | PostgreSQL 17 on port `5433`, database `overload_test` |
+| `overload-app-test`      | NestJS app on port `3001` with `NODE_ENV=test`       |
+
+The app container runs the following sequence on startup:
+
+1. Applies all Prisma migrations to the test database.
+2. Runs `vitest run --project e2e --reporter=verbose`.
+
+The process exits with the same code as the test run. Docker Compose propagates this exit code, so `pnpm test:e2e` returns non-zero on failure — suitable for CI pipelines.
+
+<Note>
+  E2E tests run with `BCRYPT_ROUNDS=4` to keep hashing fast. This has no effect on test correctness.
+</Note>
+
+### Test isolation
+
+E2E tests run sequentially (`fileParallelism: false`, `maxWorkers: 1`) with worker isolation disabled (`isolate: false`). This ensures that database state is predictable across test files.
+
+The test database is a separate PostgreSQL instance (`overload_test`) that never shares data with your development database.
+
+### Cleaning up
+
+The test containers and their volumes are removed automatically when the test run finishes (the `--remove-orphans` flag is set). To manually tear down any leftover containers:
+
+```bash
+pnpm test:e2e:down
+```

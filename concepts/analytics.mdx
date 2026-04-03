@@ -1,0 +1,202 @@
+---
+title: "Analytics"
+description: "How Overload API calculates training volume, personal records, 1RM estimates, and historical progression."
+keywords: ["analytics", "volume", "personal records", "1RM", "Epley", "progression", "metrics"]
+---
+
+Overload API provides four analytics capabilities: **volume**, **personal records (PRs)**, **1RM estimation**, and **historical progression**. All metrics are computed on demand from raw set data — nothing is pre-calculated or stored.
+
+<Note>
+All analytics exclude warmup sets (`is_warmup = true`). Only working sets count toward any metric. See [progressive overload](/concepts/progressive-overload#warmup-sets) for why.
+</Note>
+
+## Volume
+
+Volume measures the total mechanical work performed in a session.
+
+| Scope | Formula | Condition |
+|---|---|---|
+| Per set | `weight × reps` | `is_warmup = false` |
+| Per workout | `SUM(weight × reps)` across all sets | `is_warmup = false` |
+
+Volume is returned as a single number representing total kilograms moved.
+
+### Get workout volume
+
+```bash
+GET /analytics/workouts/:workoutId/volume
+```
+
+**Example response:**
+
+```json
+{
+  "data": {
+    "workout_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "total_volume": 4725.0
+  }
+}
+```
+
+## Personal records
+
+Two types of PRs are tracked per exercise. Both are scoped to the requesting user.
+
+| PR type | Formula | Description |
+|---|---|---|
+| Weight PR | `MAX(weight)` | Heaviest single set ever logged for this exercise |
+| Volume PR | `MAX(weight × reps)` | Highest single-set volume ever logged |
+
+<Note>
+PRs are the max values across all time — not per workout or per period. A weight PR is set the moment you lift more than you ever have before on that exercise.
+</Note>
+
+### Get personal records
+
+```bash
+GET /analytics/exercises/:exerciseId/prs
+```
+
+**Example response:**
+
+```json
+{
+  "data": {
+    "weight_pr": 120.0,
+    "volume_pr": 960.0
+  }
+}
+```
+
+Both fields return `null` if no eligible (non-warmup) sets exist for the exercise.
+
+## 1RM estimation
+
+The API estimates your one-rep max using the **Epley formula**:
+
+```
+estimated_1rm = weight × (1 + reps / 30.0)
+```
+
+The result is rounded to one decimal place.
+
+### Conditions for 1RM calculation
+
+| Condition | Value |
+|---|---|
+| `is_warmup` | Must be `false` |
+| `reps` | Must be ≤ 10 |
+
+<Warning>
+The Epley formula becomes unreliable above 10 reps. Sets with `reps > 10` are excluded from the calculation entirely. This is a deliberate constraint, not a bug.
+</Warning>
+
+When multiple eligible sets exist, the API selects the set that **yields the highest estimated 1RM** — not simply the heaviest set. A set of `80 kg × 8` can produce a higher estimate than `90 kg × 3`:
+
+```
+90 kg × 3  → 90 × (1 + 3/30)  = 99.0 kg
+80 kg × 8  → 80 × (1 + 8/30)  = 101.3 kg  ← selected
+```
+
+### Get 1RM estimate
+
+```bash
+GET /analytics/exercises/:exerciseId/1rm
+```
+
+**Example response:**
+
+```json
+{
+  "data": {
+    "exercise_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "estimated_1rm": 101.3,
+    "based_on": {
+      "weight": 80,
+      "reps": 8
+    }
+  }
+}
+```
+
+If no eligible sets exist (none with `reps ≤ 10` and `is_warmup = false`), all fields return `null`:
+
+```json
+{
+  "data": {
+    "exercise_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "estimated_1rm": null,
+    "based_on": null
+  }
+}
+```
+
+## Historical progression
+
+Progression tracks how your performance on a specific exercise changes over time. Results are grouped by workout session and returned in reverse chronological order (most recent first).
+
+### Metrics per session
+
+| Field | Description |
+|---|---|
+| `workout_id` | The workout this session belongs to |
+| `date` | Session date (`started_at` from the workout) |
+| `total_volume` | `SUM(weight × reps)` for this exercise in this session |
+| `avg_weight` | Average weight across all working sets in this session |
+| `avg_reps` | Average reps across all working sets in this session |
+
+All values exclude warmup sets.
+
+### Get progression history
+
+```bash
+GET /analytics/exercises/:exerciseId/progression?limit=20
+```
+
+The `limit` query parameter is optional (default: `20`, max: `100`).
+
+**Example response:**
+
+```json
+{
+  "data": [
+    {
+      "workout_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "date": "2026-03-28T09:15:00.000Z",
+      "total_volume": 2400.0,
+      "avg_weight": 100.0,
+      "avg_reps": 8.0
+    },
+    {
+      "workout_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "date": "2026-03-21T09:00:00.000Z",
+      "total_volume": 2160.0,
+      "avg_weight": 95.0,
+      "avg_reps": 8.0
+    }
+  ]
+}
+```
+
+An upward trend in `total_volume` or `avg_weight` across sessions is the quantitative signal of progressive overload working.
+
+## Metrics summary
+
+| Metric | Endpoint | Formula | Conditions |
+|---|---|---|---|
+| Workout volume | `GET /analytics/workouts/:id/volume` | `SUM(weight × reps)` | `is_warmup = false` |
+| Weight PR | `GET /analytics/exercises/:id/prs` | `MAX(weight)` | `is_warmup = false` |
+| Volume PR | `GET /analytics/exercises/:id/prs` | `MAX(weight × reps)` | `is_warmup = false` |
+| 1RM estimate | `GET /analytics/exercises/:id/1rm` | `weight × (1 + reps / 30.0)` | `is_warmup = false`, `reps ≤ 10` |
+| Progression | `GET /analytics/exercises/:id/progression` | avg weight, avg reps, total volume per session | `is_warmup = false` |
+
+## Further reading
+
+<CardGroup cols={2}>
+  <Card title="Progressive overload" icon="arrow-trend-up" href="/concepts/progressive-overload">
+    Why metrics are computed on demand and how warmup sets work
+  </Card>
+  <Card title="Data model" icon="database" href="/concepts/data-model">
+    Set fields, workout states, and the is_warmup flag
+  </Card>
+</CardGroup>

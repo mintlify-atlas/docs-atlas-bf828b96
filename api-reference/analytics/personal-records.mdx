@@ -1,0 +1,64 @@
+---
+title: 'Get personal records'
+description: 'Returns the all-time weight PR and volume PR for an exercise, calculated across every non-warmup set the authenticated user has logged.'
+api: 'GET /analytics/exercises/{exerciseId}/prs'
+---
+
+<Note>
+  This endpoint requires a valid access token. Pass it as `Authorization: Bearer <token>` in the request header.
+</Note>
+
+<Info>
+  **How PRs are calculated**
+
+  Both records exclude warmup sets (`is_warmup = true`) and are computed on-demand from the full set history.
+
+  | Record | Formula |
+  |--------|---------|
+  | Weight PR | `MAX(weight)` across all non-warmup sets |
+  | Volume PR | `MAX(weight × reps)` across all non-warmup sets |
+</Info>
+
+## Path parameters
+
+<ParamField path="exerciseId" type="string" required>
+  The UUID of the exercise to retrieve records for. Must be a valid UUID v4 and belong to the authenticated user.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="object" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="weight_pr" type="number">
+      The highest weight (in kg) ever lifted for this exercise across all non-warmup sets. Returns `null` if no eligible sets have been logged.
+    </ResponseField>
+
+    <ResponseField name="volume_pr" type="number">
+      The highest single-set volume (`weight × reps`) ever achieved for this exercise across all non-warmup sets. Returns `null` if no eligible sets have been logged.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+```bash
+curl --request GET \
+  --url http://localhost:3000/analytics/exercises/018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a/prs \
+  --header 'Authorization: Bearer <token>'
+```
+
+```json
+{
+  "data": {
+    "weight_pr": 142.5,
+    "volume_pr": 1140
+  }
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | `Unauthorized` | Missing or invalid access token. |
+| `404` | `Not Found` | No exercise with the given ID exists for your account. |

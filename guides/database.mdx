@@ -1,0 +1,105 @@
+---
+title: "Database"
+description: "How to manage migrations, reset, and seed the Overload API database."
+---
+
+The Overload API uses **PostgreSQL 17** as its database and **Prisma 7** as its ORM. All schema changes go through Prisma migrations — never edit the database directly.
+
+## Schema overview
+
+The schema contains seven tables. Derived metrics — volume, 1RM estimates, and personal records — are calculated on demand and never persisted.
+
+| Table             | Description                                          |
+| ----------------- | ---------------------------------------------------- |
+| `users`           | Registered accounts                                  |
+| `refresh_tokens`  | Persisted refresh tokens (stored as SHA-256 hashes)  |
+| `exercises`       | User's personal exercise catalog                     |
+| `routines`        | Training plans with target sets, reps, and rest times |
+| `routine_exercises` | Join table linking exercises to routines            |
+| `workouts`        | Individual training sessions                         |
+| `sets`            | Individual sets logged within a workout              |
+
+Key design decisions:
+
+- **Refresh tokens** are never stored in plain text — only their SHA-256 hash is persisted. Access tokens are stateless and never stored.
+- **Exercises** are soft-deleted via `is_archived = TRUE` if they have associated history, so historical data is never lost.
+- **Routines** are soft-deleted via `is_active = FALSE` rather than hard-deleted.
+- **Refresh tokens** are invalidated by setting `revoked_at` rather than deleting the row.
+- **Warmup sets** (`is_warmup = TRUE`) are recorded but excluded from PR detection and volume calculations.
+- **Workouts** can exist without a routine to support spontaneous training sessions.
+
+## Available commands
+
+All database commands run inside the `overload-app-dev` container. Start the development environment with `pnpm dev` before running them.
+
+| Command           | Description                                    |
+| ----------------- | ---------------------------------------------- |
+| `pnpm db:migrate` | Create and apply a new migration               |
+| `pnpm db:reset`   | Reset the database and re-apply all migrations |
+| `pnpm db:seed`    | Run the seed script with sample data           |
+| `pnpm db:gen`     | Regenerate the Prisma client                   |
+
+### When to use each command
+
+| Situation                              | Command                          |
+| -------------------------------------- | -------------------------------- |
+| Modified `prisma/schema.prisma`        | `pnpm db:migrate`                |
+| Reset DB without wiping containers     | `pnpm db:reset`                  |
+| Conflicting migration history          | `pnpm db:reset`                  |
+| Changed Dockerfile or dependencies     | `pnpm dev:build`                 |
+| Wipe everything and start fresh        | `pnpm clean` → `pnpm dev:build`  |
+
+## Creating a migration
+
+When you change the data model, create a migration to record the change and apply it to the database:
+
+1. Modify `prisma/schema.prisma` with your changes.
+2. Run the migrate command:
+
+```bash
+pnpm db:migrate
+```
+
+Prisma will prompt you for a migration name, generate a SQL file under `prisma/migrations/`, and apply it to the development database immediately. The generated Prisma client is updated automatically.
+
+<Note>
+  Migrations are applied automatically on container startup (`prisma migrate deploy`), so any teammate who pulls your changes will have the schema updated the next time they run `pnpm dev`.
+</Note>
+
+## Resetting the database
+
+`db:reset` drops the database, recreates it, re-applies all migrations from scratch, and reruns the seed script if one is configured.
+
+```bash
+pnpm db:reset
+```
+
+Use this when:
+- You want a clean slate without stopping the containers.
+- Your local migration history has conflicts after rebasing or merging.
+
+<Warning>
+  `pnpm db:reset` permanently deletes all data in the development database. Use it only on your local environment.
+</Warning>
+
+## Seeding with sample data
+
+The seed script at `prisma/seed.ts` populates the database with sample data useful for development and manual testing.
+
+```bash
+pnpm db:seed
+```
+
+Run this after `pnpm dev` (to ensure the containers are up) or after `pnpm db:reset` to restore a baseline dataset.
+
+## Regenerating the Prisma client
+
+The generated Prisma client at `generated/prisma/` is built from your schema. It is generated automatically when the container starts (`prisma generate` runs as part of the Docker build). Run this manually if you need to refresh the client without rebuilding the container:
+
+```bash
+pnpm db:gen
+```
+
+<Note>
+  Never edit files in `generated/prisma/` directly. They are overwritten every time `pnpm db:gen` or `pnpm db:migrate` runs.
+</Note>

@@ -1,0 +1,256 @@
+---
+title: "Authentication"
+description: "Register, log in, refresh tokens, and log out using JWT + refresh token authentication."
+---
+
+Overload API uses a two-token authentication scheme: a short-lived **access token** for authorizing requests and a longer-lived **refresh token** for obtaining new access tokens without requiring the user to log in again.
+
+## How tokens work
+
+| Token | Lifetime | Stored | Purpose |
+|---|---|---|---|
+| Access token | 15 minutes | Never (stateless) | Authorize API requests via `Authorization: Bearer` |
+| Refresh token | 7 days | SHA-256 hash in DB | Obtain a new access token pair when the current one expires |
+
+The access token is a signed JWT validated cryptographically on every request — it is never stored in the database. The refresh token is persisted as a SHA-256 hash and is revoked immediately on logout or rotation.
+
+<Note>
+  The `password_hash` field is never included in any response, regardless of endpoint.
+</Note>
+
+## Register
+
+Create a new account. On success, both tokens are issued immediately — no separate login step is required.
+
+**`POST /auth/register`**
+
+### Request body
+
+<ParamField body="email" type="string" required>
+  A valid email address. Stored and compared case-insensitively.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Display name. Must be between 2 and 100 characters.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Must be at least 8 characters. Hashed with bcrypt before storage.
+</ParamField>
+
+### Example
+
+```bash
+curl -s -X POST http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "alex@example.com",
+    "name": "Alex",
+    "password": "mysecretpassword"
+  }'
+```
+
+### Response `201 Created`
+
+```json
+{
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "cm9abc123def456ghi789",
+      "email": "alex@example.com",
+      "name": "Alex",
+      "is_active": true,
+      "created_at": "2026-04-03T10:00:00.000Z",
+      "updated_at": "2026-04-03T10:00:00.000Z"
+    }
+  }
+}
+```
+
+### Error responses
+
+| Status | Condition |
+|---|---|
+| `409 Conflict` | An account with that email already exists |
+
+```json
+{
+  "statusCode": 409,
+  "error": "Conflict",
+  "message": "Email already in use"
+}
+```
+
+---
+
+## Log in
+
+Authenticate an existing account. Returns the same token pair as registration.
+
+**`POST /auth/login`**
+
+### Request body
+
+<ParamField body="email" type="string" required>
+  The account email address.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The account password.
+</ParamField>
+
+### Example
+
+```bash
+curl -s -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "alex@example.com",
+    "password": "mysecretpassword"
+  }'
+```
+
+### Response `200 OK`
+
+```json
+{
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "cm9abc123def456ghi789",
+      "email": "alex@example.com",
+      "name": "Alex",
+      "is_active": true,
+      "created_at": "2026-04-03T10:00:00.000Z",
+      "updated_at": "2026-04-03T10:00:00.000Z"
+    }
+  }
+}
+```
+
+### Error responses
+
+| Status | Condition |
+|---|---|
+| `401 Unauthorized` | Email not found or password incorrect |
+
+<Warning>
+  Both "email not found" and "incorrect password" return the same `401` response with the message `"Invalid credentials"`. This is intentional — distinguishing between the two would allow email enumeration.
+</Warning>
+
+---
+
+## Include the token in requests
+
+All protected endpoints require the access token in the `Authorization` header:
+
+```bash
+curl -s http://localhost:3000/exercises \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+A missing or invalid token returns `401 Unauthorized`. The token expires after **15 minutes** — use the refresh endpoint to get a new one without logging in again.
+
+---
+
+## Refresh tokens
+
+Exchange a valid refresh token for a new access token and refresh token. The old refresh token is revoked immediately (token rotation).
+
+**`POST /auth/refresh`**
+
+### Request body
+
+<ParamField body="refreshToken" type="string" required>
+  The refresh token issued during login or the previous refresh call.
+</ParamField>
+
+### Example
+
+```bash
+curl -s -X POST http://localhost:3000/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+
+### Response `200 OK`
+
+```json
+{
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+### Error responses
+
+| Status | Condition |
+|---|---|
+| `401 Unauthorized` | Refresh token is expired, revoked, or not found |
+
+<Warning>
+  After calling `/auth/refresh`, the old refresh token is permanently revoked. Store and use only the new token returned in the response.
+</Warning>
+
+---
+
+## Log out
+
+Revoke the current refresh token. The access token remains valid until its 15-minute TTL expires — there is no server-side access token revocation.
+
+**`POST /auth/logout`**
+
+### Request body
+
+<ParamField body="refreshToken" type="string" required>
+  The refresh token to revoke.
+</ParamField>
+
+### Example
+
+```bash
+curl -s -X POST http://localhost:3000/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+
+### Response `200 OK`
+
+```json
+{
+  "data": {
+    "message": "Logged out successfully"
+  }
+}
+```
+
+### Error responses
+
+| Status | Condition |
+|---|---|
+| `401 Unauthorized` | The refresh token is invalid or already expired |
+
+---
+
+## Security notes
+
+<Note>
+  **Token rotation** — every call to `/auth/refresh` revokes the previous refresh token and issues a new one. Never reuse a refresh token after it has been exchanged.
+</Note>
+
+<Note>
+  **Session limit** — a user can have at most **5 active refresh tokens** simultaneously (5 logged-in devices or sessions). When the limit is reached and the user logs in again, the oldest active refresh token is automatically revoked.
+</Note>
+
+<Tip>
+  For web clients, store the refresh token in an `HttpOnly` cookie to prevent access from JavaScript. Avoid storing tokens in `localStorage`.
+</Tip>

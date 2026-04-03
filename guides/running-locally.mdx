@@ -1,0 +1,114 @@
+---
+title: "Running locally"
+description: "Set up and run the Overload API on your machine using Docker Compose."
+---
+
+The development environment runs entirely inside Docker. You do not need to install Node.js or PostgreSQL on your host — only Docker and pnpm are required.
+
+## Prerequisites
+
+- [Docker](https://www.docker.com/) and Docker Compose v2
+- [pnpm](https://pnpm.io/) — `npm install -g pnpm`
+- Node.js v24+ (only needed outside Docker, for IDE support)
+
+## Setup
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/JosepRivera/overload-api.git
+    cd overload-api
+    ```
+  </Step>
+
+  <Step title="Set up environment variables">
+    Copy the example file and fill in the required values:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Open `.env` and set at minimum `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, and `JWT_SECRET`. See the [environment variables guide](/guides/environment-variables) for a full description of each variable.
+
+    <Warning>
+      Never commit `.env` to version control. It is listed in `.gitignore` by default.
+    </Warning>
+  </Step>
+
+  <Step title="Install dependencies (optional)">
+    This step is not required to run the API, but it enables type checking, auto-imports, and IntelliSense in your IDE.
+
+    ```bash
+    pnpm install
+    ```
+  </Step>
+
+  <Step title="Start the development environment">
+    ```bash
+    pnpm dev
+    ```
+
+    This runs `docker compose up`, which builds the image and starts two containers:
+
+    | Container             | Description                                       |
+    | --------------------- | ------------------------------------------------- |
+    | `overload-postgres-dev` | PostgreSQL 17 database, with a persistent volume |
+    | `overload-app-dev`      | NestJS API in watch mode                         |
+
+    On first start (and after any schema change), pending Prisma migrations are applied automatically before the server boots.
+  </Step>
+</Steps>
+
+## Ports
+
+| Service    | Host port | Notes                                       |
+| ---------- | --------- | ------------------------------------------- |
+| API        | `3000`    | Configured via `PORT` in `.env`             |
+| Debugger   | `9229`    | Node.js inspector — attach with VS Code or Chrome DevTools |
+| PostgreSQL | `5432`    | Configured via `POSTGRES_PORT` in `.env`    |
+
+## API docs
+
+Once the server is running, the interactive Swagger UI is available at:
+
+```
+http://localhost:3000/api/docs
+```
+
+Protected endpoints require a Bearer token. Get one from `POST /auth/login` and paste it into the **Authorize** button in the Swagger UI.
+
+## Common workflows
+
+### Adding or updating dependencies
+
+Installing a package locally updates `package.json` and `pnpm-lock.yaml`. You then need to rebuild the container so the new dependency is installed inside Docker:
+
+```bash
+pnpm add <package-name>
+pnpm dev:build
+```
+
+`pnpm dev:build` runs `docker compose up --build`, rebuilding the image before starting.
+
+### Hot reload
+
+Source file changes are reflected automatically — no restart needed. The `src/` and `prisma/` directories are mounted as volumes into the container, and `nest start --watch` recompiles on every save.
+
+### Stopping the environment
+
+```bash
+pnpm stop       # stop and remove containers (keeps the database volume)
+pnpm clean      # stop containers and delete the database volume
+```
+
+<Warning>
+  `pnpm clean` wipes the database. Use `pnpm stop` if you want to preserve your data between sessions.
+</Warning>
+
+### Opening a shell inside the container
+
+```bash
+pnpm shell
+```
+
+This runs `docker exec -it overload-app-dev sh`, giving you a shell inside the running app container.

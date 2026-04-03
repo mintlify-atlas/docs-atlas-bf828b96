@@ -1,0 +1,83 @@
+---
+title: 'Create routine'
+description: 'Create a new training routine for the authenticated user. Routine names must be unique per user.'
+api: 'POST /routines'
+---
+
+<Note>
+  This endpoint requires a valid access token. Pass it as `Authorization: Bearer <token>` in the request header.
+</Note>
+
+## Request body
+
+<ParamField body="name" type="string" required>
+  The routine name. Must be between 1 and 150 characters. Leading and trailing whitespace is trimmed. Must be unique per user — you cannot have two routines with the same name.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Optional free-text description of the routine. Maximum 2000 characters.
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="string" required>
+  The routine's unique identifier (UUID).
+</ResponseField>
+
+<ResponseField name="user_id" type="string" required>
+  The UUID of the user who owns this routine.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  The routine name.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  The routine description, or `null` if none was provided.
+</ResponseField>
+
+<ResponseField name="is_active" type="boolean" required>
+  Whether the routine is active. Always `true` for newly created routines.
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  ISO 8601 timestamp of when the routine was created.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string" required>
+  ISO 8601 timestamp of the last update.
+</ResponseField>
+
+## Example
+
+```bash
+curl --request POST \
+  --url http://localhost:3000/routines \
+  --header 'Authorization: Bearer <token>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": "Push Day A",
+    "description": "Chest, shoulders, and triceps — heavy compounds first."
+  }'
+```
+
+```json
+{
+  "data": {
+    "id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "user_id": "018e1a2b-3c4d-5e6f-7a8b-9c0d1e2f3a4b",
+    "name": "Push Day A",
+    "description": "Chest, shoulders, and triceps — heavy compounds first.",
+    "is_active": true,
+    "created_at": "2026-04-03T10:00:00.000Z",
+    "updated_at": "2026-04-03T10:00:00.000Z"
+  }
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | `Unauthorized` | Missing or invalid access token. |
+| `409` | `Conflict` | A routine with this name already exists for your account. |

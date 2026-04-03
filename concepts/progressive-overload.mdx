@@ -1,0 +1,78 @@
+---
+title: "Progressive overload"
+description: "The core principle behind Overload API — what it means, why it matters, and how the API is designed to support it."
+keywords: ["progressive overload", "training stimulus", "strength training", "volume", "reps", "sets"]
+---
+
+Progressive overload is the practice of systematically increasing the training stimulus over time to drive continuous muscular adaptation. In strength training, that stimulus is the combination of weight lifted, repetitions performed, and total volume accumulated across a session.
+
+Without progression, the body adapts to a fixed stimulus and stops improving. By gradually increasing one or more variables — adding weight to the bar, completing more reps, or shortening rest times — you force continued adaptation.
+
+## The training loop
+
+Overload API structures all data around the natural flow of a training session:
+
+```
+User creates exercises
+       ↓
+User builds routines (optional — workouts can be free)
+       ↓
+User starts a workout session (optionally linked to a routine)
+       ↓
+User logs sets (exercise + weight + reps) during the session
+       ↓
+User finishes the workout
+       ↓
+System calculates volume, PRs, and 1RM on demand from logged sets
+```
+
+Each layer serves a specific purpose:
+
+| Layer | Purpose |
+|---|---|
+| **Exercises** | Personal catalog of movements — the "what" |
+| **Routines** | Workout templates — the "plan" |
+| **Workouts** | Training sessions — the "execution" |
+| **Sets** | Atomic data points — the "evidence" |
+| **Analytics** | Derived metrics — the "insight" |
+
+Routines are optional. You can start a free workout at any time without a template.
+
+## Warmup sets
+
+Sets marked `is_warmup = true` are recorded but excluded from every statistical calculation — volume, personal records, and 1RM estimates.
+
+<Note>
+Warmup sets use sub-maximal weight to prepare the body for work sets. Including them in performance metrics would dilute records and give misleading progression data. The API stores them for completeness but never counts them in any calculation.
+</Note>
+
+This mirrors real training practice: a lifter warming up with 60 kg before a 120 kg working set should not have their 1RM estimate skewed downward by the warmup.
+
+## Why metrics are calculated on demand
+
+All performance metrics — volume, personal records, and 1RM estimates — are computed at query time directly from the raw set data. Nothing is pre-computed or cached in the database.
+
+**Benefits of this approach:**
+
+- **Always accurate.** If a set is corrected or deleted, the next query reflects the change automatically with no stale cached values.
+- **No update fan-out.** Logging a new PR does not trigger writes to a separate PR table or invalidate cached aggregates.
+- **Simpler schema.** The database stores only facts (sets). Derived meaning lives in query logic.
+- **Consistent queries.** Every analytics endpoint re-reads the source data. There is no divergence between what is stored and what is reported.
+
+<Tip>
+Because metrics are always fresh, you can safely correct mislabeled sets (e.g. a warmup flag left off) and immediately re-query to get accurate numbers.
+</Tip>
+
+## Further reading
+
+<CardGroup cols={3}>
+  <Card title="Data model" icon="database" href="/concepts/data-model">
+    Resource relationships, field definitions, and soft-delete behavior
+  </Card>
+  <Card title="Analytics" icon="chart-line" href="/concepts/analytics">
+    Volume, personal records, 1RM estimation, and progression history
+  </Card>
+  <Card title="API reference" icon="code" href="/api-reference/auth/register">
+    Full endpoint documentation
+  </Card>
+</CardGroup>

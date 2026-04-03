@@ -1,0 +1,106 @@
+---
+title: 'Get exercise progression'
+description: 'Returns session-by-session progression for an exercise, ordered from most recent to oldest. Each entry aggregates all non-warmup sets logged for that exercise within a single workout.'
+api: 'GET /analytics/exercises/{exerciseId}/progression'
+---
+
+<Note>
+  This endpoint requires a valid access token. Pass it as `Authorization: Bearer <token>` in the request header.
+</Note>
+
+<Info>
+  **How progression is aggregated**
+
+  For each workout session that contains at least one non-warmup set for the exercise, the following metrics are computed across all those sets:
+
+  | Metric | Formula |
+  |--------|---------|
+  | `total_volume` | `SUM(weight × reps)` |
+  | `avg_weight` | `SUM(weight) / count` |
+  | `avg_reps` | `SUM(reps) / count` |
+
+  Warmup sets (`is_warmup = true`) are excluded from all calculations. Results are ordered by workout date descending (most recent first).
+</Info>
+
+## Path parameters
+
+<ParamField path="exerciseId" type="string" required>
+  The UUID of the exercise to retrieve progression for. Must be a valid UUID v4 and belong to the authenticated user.
+</ParamField>
+
+## Query parameters
+
+<ParamField query="limit" type="number" default="20">
+  Maximum number of sessions to return. Must be an integer between `1` and `100` inclusive. Defaults to `20`.
+</ParamField>
+
+## Response
+
+An array of session progression objects, ordered by date descending.
+
+<ResponseField name="data" type="object[]" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="workout_id" type="string" required>
+      The UUID of the workout session.
+    </ResponseField>
+
+    <ResponseField name="date" type="string" required>
+      ISO 8601 timestamp of when the workout started (`started_at`).
+    </ResponseField>
+
+    <ResponseField name="total_volume" type="number" required>
+      Total volume for this exercise in the session: `SUM(weight × reps)` across all non-warmup sets.
+    </ResponseField>
+
+    <ResponseField name="avg_weight" type="number" required>
+      Average weight across all non-warmup sets for this exercise in the session.
+    </ResponseField>
+
+    <ResponseField name="avg_reps" type="number" required>
+      Average rep count across all non-warmup sets for this exercise in the session.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+```bash
+curl --request GET \
+  --url 'http://localhost:3000/analytics/exercises/018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a/progression?limit=3' \
+  --header 'Authorization: Bearer <token>'
+```
+
+```json
+{
+  "data": [
+    {
+      "workout_id": "0a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d",
+      "date": "2026-04-03T09:00:00.000Z",
+      "total_volume": 4500,
+      "avg_weight": 100,
+      "avg_reps": 5
+    },
+    {
+      "workout_id": "1b2c3d4e-5f6a-7b8c-9d0e-1f2a3b4c5d6e",
+      "date": "2026-03-31T09:15:00.000Z",
+      "total_volume": 4200,
+      "avg_weight": 97.5,
+      "avg_reps": 5.33
+    },
+    {
+      "workout_id": "2c3d4e5f-6a7b-8c9d-0e1f-2a3b4c5d6e7f",
+      "date": "2026-03-27T08:45:00.000Z",
+      "total_volume": 3780,
+      "avg_weight": 90,
+      "avg_reps": 6
+    }
+  ]
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | `Unauthorized` | Missing or invalid access token. |
+| `404` | `Not Found` | No exercise with the given ID exists for your account. |

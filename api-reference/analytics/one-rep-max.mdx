@@ -1,0 +1,101 @@
+---
+title: 'Get estimated 1RM'
+description: "Estimates the one-rep max for an exercise using the Epley formula. Returns the best estimate across all eligible non-warmup sets, along with the set it was based on."
+api: 'GET /analytics/exercises/{exerciseId}/1rm'
+---
+
+<Note>
+  This endpoint requires a valid access token. Pass it as `Authorization: Bearer <token>` in the request header.
+</Note>
+
+<Info>
+  **Epley formula**
+
+  ```
+  1RM = weight × (1 + reps / 30)
+  ```
+
+  Only non-warmup sets with **reps ≤ 10** are considered. The Epley formula becomes unreliable at higher rep ranges, so those sets are excluded.
+
+  The returned estimate is based on the set that produces the **highest** calculated 1RM — not necessarily the heaviest set. For example, `80 kg × 8` yields a higher estimate than `90 kg × 3`.
+
+  The result is rounded to one decimal place.
+</Info>
+
+<Warning>
+  This is an **estimate**, not a tested maximum. Results vary depending on training style and fatigue level. Do not treat this value as a guaranteed safe maximum.
+</Warning>
+
+## Path parameters
+
+<ParamField path="exerciseId" type="string" required>
+  The UUID of the exercise to estimate 1RM for. Must be a valid UUID v4 and belong to the authenticated user.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="object" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="exercise_id" type="string" required>
+      The UUID of the exercise.
+    </ResponseField>
+
+    <ResponseField name="estimated_1rm" type="number">
+      The estimated one-rep max in kg, rounded to one decimal place. Returns `null` if no eligible sets exist (i.e. no non-warmup sets with reps ≤ 10 have been logged).
+    </ResponseField>
+
+    <ResponseField name="based_on" type="object">
+      The set used to produce the estimate. Returns `null` when `estimated_1rm` is `null`.
+
+      <Expandable title="properties">
+        <ResponseField name="weight" type="number" required>
+          The weight (in kg) of the set used for the calculation.
+        </ResponseField>
+
+        <ResponseField name="reps" type="number" required>
+          The rep count of the set used for the calculation.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+```bash
+curl --request GET \
+  --url http://localhost:3000/analytics/exercises/018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a/1rm \
+  --header 'Authorization: Bearer <token>'
+```
+
+```json
+{
+  "data": {
+    "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+    "estimated_1rm": 112.5,
+    "based_on": {
+      "weight": 100,
+      "reps": 3
+    }
+  }
+}
+```
+
+When no eligible sets have been logged:
+
+```json
+{
+  "data": {
+    "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+    "estimated_1rm": null,
+    "based_on": null
+  }
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | `Unauthorized` | Missing or invalid access token. |
+| `404` | `Not Found` | No exercise with the given ID exists for your account. |

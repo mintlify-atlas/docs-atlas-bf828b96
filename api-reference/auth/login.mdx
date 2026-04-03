@@ -1,0 +1,84 @@
+---
+title: 'Login'
+description: 'Authenticate with email and password. Returns an access token and a refresh token on success.'
+api: 'POST /auth/login'
+---
+
+## Request body
+
+<ParamField body="email" type="string" required>
+  The email address associated with the account.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The account password.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="object" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="accessToken" type="string" required>
+      A signed JWT for authenticating subsequent requests. Valid for **15 minutes**.
+    </ResponseField>
+
+    <ResponseField name="refreshToken" type="string" required>
+      A signed JWT used to obtain new access tokens. Valid for **7 days**. Store this securely — it cannot be retrieved again.
+    </ResponseField>
+
+    <ResponseField name="user" type="object" required>
+      <Expandable title="properties" defaultOpen>
+        <ResponseField name="id" type="string" required>
+          The user's unique identifier (UUID).
+        </ResponseField>
+
+        <ResponseField name="email" type="string" required>
+          The user's email address.
+        </ResponseField>
+
+        <ResponseField name="name" type="string" required>
+          The user's display name.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  The access token expires after **15 minutes**. The refresh token expires after **7 days**. Use `POST /auth/refresh` to obtain a new access token before it expires.
+
+  A user can have at most **5 active refresh tokens** simultaneously (5 concurrent sessions). If the limit is reached, the oldest active token is automatically revoked when a new session is created.
+</Note>
+
+## Example
+
+```bash
+curl --request POST \
+  --url http://localhost:3000/auth/login \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "email": "alex@example.com",
+    "password": "sup3rSecure!"
+  }'
+```
+
+```json
+{
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+      "email": "alex@example.com",
+      "name": "Alex Rivera"
+    }
+  }
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | `Bad Request` | Validation failed — email format is invalid or password is missing. |
+| `401` | `Unauthorized` | Invalid credentials. The error message is intentionally ambiguous — the API does not reveal whether the email exists or the password is wrong. |

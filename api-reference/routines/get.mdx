@@ -1,0 +1,140 @@
+---
+title: 'Get routine'
+description: 'Retrieve a single routine by ID, including all its exercises ordered by position.'
+api: 'GET /routines/{id}'
+---
+
+<Note>
+  This endpoint requires a valid access token. Pass it as `Authorization: Bearer <token>` in the request header.
+</Note>
+
+## Path parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the routine to retrieve. Must be a valid UUID v4.
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="string" required>
+  The routine's unique identifier (UUID).
+</ResponseField>
+
+<ResponseField name="user_id" type="string" required>
+  The UUID of the user who owns this routine.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  The routine name.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  The routine description, or `null` if none was provided.
+</ResponseField>
+
+<ResponseField name="is_active" type="boolean" required>
+  Whether the routine is active.
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  ISO 8601 timestamp of when the routine was created.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string" required>
+  ISO 8601 timestamp of the last update.
+</ResponseField>
+
+<ResponseField name="routine_exercises" type="object[]" required>
+  The exercises assigned to this routine, ordered by `order_index` ascending.
+
+  <Expandable title="properties">
+    <ResponseField name="id" type="string" required>
+      The routine-exercise entry's unique identifier (UUID).
+    </ResponseField>
+
+    <ResponseField name="routine_id" type="string" required>
+      The UUID of the parent routine.
+    </ResponseField>
+
+    <ResponseField name="exercise_id" type="string" required>
+      The UUID of the referenced exercise.
+    </ResponseField>
+
+    <ResponseField name="target_sets" type="number" required>
+      The number of sets prescribed for this exercise.
+    </ResponseField>
+
+    <ResponseField name="target_reps_min" type="number" required>
+      The lower bound of the target rep range.
+    </ResponseField>
+
+    <ResponseField name="target_reps_max" type="number" required>
+      The upper bound of the target rep range.
+    </ResponseField>
+
+    <ResponseField name="target_rest_sec" type="number" required>
+      The prescribed rest period in seconds between sets.
+    </ResponseField>
+
+    <ResponseField name="order_index" type="number" required>
+      The zero-based position of this exercise within the routine.
+    </ResponseField>
+
+    <ResponseField name="notes" type="string">
+      Optional exercise-specific notes, or `null` if none were provided.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+```bash
+curl --request GET \
+  --url http://localhost:3000/routines/a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d \
+  --header 'Authorization: Bearer <token>'
+```
+
+```json
+{
+  "data": {
+  "id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+  "user_id": "018e1a2b-3c4d-5e6f-7a8b-9c0d1e2f3a4b",
+  "name": "Push Day A",
+  "description": "Chest, shoulders, and triceps — heavy compounds first.",
+  "is_active": true,
+  "created_at": "2026-04-03T10:00:00.000Z",
+  "updated_at": "2026-04-03T10:00:00.000Z",
+  "routine_exercises": [
+    {
+      "id": "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
+      "routine_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+      "exercise_id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+      "target_sets": 4,
+      "target_reps_min": 4,
+      "target_reps_max": 6,
+      "target_rest_sec": 180,
+      "order_index": 0,
+      "notes": "Focus on bar path — tuck elbows slightly."
+    },
+    {
+      "id": "d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a",
+      "routine_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+      "exercise_id": "029f9a3b-2c4d-8e5f-0a1b-3c4d5e6f7a8b",
+      "target_sets": 3,
+      "target_reps_min": 8,
+      "target_reps_max": 12,
+      "target_rest_sec": 90,
+      "order_index": 1,
+      "notes": null
+    }
+  ]
+  }
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | `Unauthorized` | Missing or invalid access token. |
+| `404` | `Not Found` | No routine with the given ID exists for your account. |

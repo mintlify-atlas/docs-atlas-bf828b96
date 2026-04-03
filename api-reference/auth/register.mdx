@@ -1,0 +1,92 @@
+---
+title: 'Register'
+description: 'Create a new user account. The user is automatically logged in — access and refresh tokens are returned immediately.'
+api: 'POST /auth/register'
+---
+
+## Request body
+
+<ParamField body="email" type="string" required>
+  The user's email address. Must be a valid email format. Treated as case-insensitive — stored in lowercase internally. Must be unique across all accounts.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  The user's display name. Must be between 2 and 100 characters. Leading and trailing whitespace is trimmed.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The account password. Must be at least 8 characters long. Stored as a bcrypt hash — never returned in any response.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="object" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="accessToken" type="string" required>
+      A signed JWT for authenticating subsequent requests. Valid for **15 minutes**.
+    </ResponseField>
+
+    <ResponseField name="refreshToken" type="string" required>
+      A signed JWT used to obtain new access tokens. Valid for **7 days**. Stored as a SHA-256 hash — the raw value is only returned here.
+    </ResponseField>
+
+    <ResponseField name="user" type="object" required>
+      <Expandable title="properties" defaultOpen>
+        <ResponseField name="id" type="string" required>
+          The user's unique identifier (UUID).
+        </ResponseField>
+
+        <ResponseField name="email" type="string" required>
+          The user's email address (lowercased).
+        </ResponseField>
+
+        <ResponseField name="name" type="string" required>
+          The user's display name.
+        </ResponseField>
+
+        <ResponseField name="created_at" type="string" required>
+          ISO 8601 timestamp of when the account was created.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  `password_hash` is never included in any response. Registration immediately issues tokens so the user does not need to make a separate login request.
+</Note>
+
+## Example
+
+```bash
+curl --request POST \
+  --url http://localhost:3000/auth/register \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "email": "alex@example.com",
+    "name": "Alex Rivera",
+    "password": "sup3rSecure!"
+  }'
+```
+
+```json
+{
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "018e8f2a-1b3c-7d4e-9f0a-2b3c4d5e6f7a",
+      "email": "alex@example.com",
+      "name": "Alex Rivera",
+      "created_at": "2026-04-03T10:00:00.000Z"
+    }
+  }
+}
+```
+
+## Error responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | `Bad Request` | Validation failed — email is invalid, name is too short or too long, or password is fewer than 8 characters. |
+| `409` | `Conflict` | The email address is already registered to an existing account. |

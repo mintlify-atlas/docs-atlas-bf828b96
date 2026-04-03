@@ -1,0 +1,186 @@
+---
+title: "Data model"
+description: "Resource types, field definitions, relationships, and soft-delete behavior in Overload API."
+keywords: ["data model", "schema", "resources", "exercises", "routines", "workouts", "sets", "relationships"]
+---
+
+Every resource in Overload API is **user-scoped**. Users own all their data — exercises, routines, workouts, and sets. Accessing another user's resources always returns `403 Forbidden`.
+
+## Resources overview
+
+| Resource | Description | Owns |
+|---|---|---|
+| `User` | Account and identity | exercises, routines, workouts |
+| `Exercise` | A movement in the user's personal catalog | sets (via workouts) |
+| `Routine` | A workout template with ordered exercises | workouts (optional link) |
+| `RoutineExercise` | An exercise slot inside a routine with targets | — |
+| `Workout` | A training session (active or completed) | sets |
+| `Set` | One exercise performed at a weight × reps | — |
+
+## Relationships
+
+```
+User
+ ├── Exercise[]           (personal catalog)
+ ├── Routine[]
+ │    └── RoutineExercise[]  (ordered exercise slots with targets)
+ └── Workout[]
+      ├── routine_id?     (optional link to a Routine)
+      └── Set[]
+           ├── workout_id
+           └── exercise_id
+```
+
+<Note>
+A workout does not require a routine. You can start a free workout and log sets against any exercise in your catalog. If the routine a workout was created from is later deactivated, the `routine_id` reference is preserved on the workout record as a historical link.
+</Note>
+
+## Resource details
+
+### User
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Unique identifier |
+| `email` | VARCHAR(255) | Login email — stored and compared in lowercase |
+| `password_hash` | VARCHAR(255) | bcrypt hash (cost 12) — never returned in responses |
+| `name` | VARCHAR(100) | Display name |
+| `is_active` | Boolean | `false` blocks login while preserving all data |
+| `email_verified` | Boolean | Email verification status |
+| `created_at` | Timestamptz | Registration date |
+| `updated_at` | Timestamptz | Last profile update |
+
+### Exercise
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Unique identifier |
+| `user_id` | UUID | Owning user |
+| `name` | VARCHAR(150) | Exercise name — unique per user among active exercises |
+| `category` | VARCHAR(100) | Muscle group (e.g. `chest`, `back`, `legs`) |
+| `type` | VARCHAR(50) | Movement type: `compound`, `isolation`, `cardio`, `stretching` |
+| `notes` | Text (nullable) | Technique or equipment notes |
+| `is_archived` | Boolean | Soft-delete flag |
+| `created_at` | Timestamptz | Creation date |
+| `updated_at` | Timestamptz | Last update |
+
+Exercise names are unique **per user, case-insensitive, among active (non-archived) exercises**. You cannot have two active exercises named `Bench Press` and `bench press`. You can have an archived `Bench Press` and a new active `Bench Press`.
+
+#### Exercise states
+
+| `is_archived` | Visible in catalog | Can log sets | Can be restored |
+|---|---|---|---|
+| `false` | Yes | Yes | — |
+| `true` | No (excluded by default) | No | Yes |
+
+### Routine
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Unique identifier |
+| `user_id` | UUID | Owning user |
+| `name` | VARCHAR(150) | Routine name — unique per user among active routines |
+| `description` | Text (nullable) | Optional description |
+| `is_active` | Boolean | `false` deactivates the routine (soft delete) |
+| `created_at` | Timestamptz | Creation date |
+| `updated_at` | Timestamptz | Last update |
+
+#### Routine states
+
+| `is_active` | Visible | Can start workout | Can be edited |
+|---|---|---|---|
+| `true` | Yes | Yes | Yes |
+| `false` | No | No | No |
+
+### RoutineExercise
+
+Each entry is an exercise slot inside a routine with training targets.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Unique identifier |
+| `routine_id` | UUID | Parent routine |
+| `exercise_id` | UUID | Referenced exercise (must be active and owned by the same user) |
+| `target_sets` | Integer | Target number of sets |
+| `target_reps_min` | Integer | Minimum target reps |
+| `target_reps_max` | Integer | Maximum target reps — must be ≥ `target_reps_min` |
+| `target_rest_sec` | Integer | Rest duration in seconds |
+| `order_index` | Integer | Position in the routine (0-indexed, unique per routine) |
+| `notes` | Text (nullable) | Technique or load guidance |
+
+An exercise can appear only once in a given routine. `order_index` values are unique within each routine and can be reordered by submitting the full desired order.
+
+### Workout
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Unique identifier |
+| `user_id` | UUID | Owning user |
+| `routine_id` | UUID (nullable) | Routine this session follows — optional |
+| `started_at` | Timestamptz | When the session started (client-provided) |
+| `finished_at` | Timestamptz (nullable) | When the session ended — `null` means in-progress |
+| `notes` | Text (nullable) | Session notes — the only field editable after sets are logged |
+| `created_at` | Timestamptz | Record creation date |
+
+#### Workout states
+
+| `finished_at` | State | Can add sets | Can delete | Can update |
+|---|---|---|---|---|
+| `null` | Active / in-progress | Yes | Yes (only if no sets) | Yes — `notes` only |
+| Not null | Completed | No | No | Yes — `notes` only |
+
+<Warning>
+A user can have at most **one active workout** at a time. Starting a second workout while one is already in progress returns a conflict error. Finish or delete the current workout first.
+</Warning>
+
+Once a workout has sets, it becomes immutable except for `notes`. A workout without sets can be deleted.
+
+### Set
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Unique identifier |
+| `workout_id` | UUID | Parent workout |
+| `exercise_id` | UUID | Exercise performed |
+| `set_number` | Integer | Set number within the exercise for this workout — unique per `(workout_id, exercise_id)` |
+| `weight` | Decimal(6,2) | Weight in kg — `0.00` is valid for bodyweight |
+| `reps` | Integer | Repetitions completed |
+| `rpe` | Decimal(3,1) (nullable) | Rate of Perceived Exertion — `1.0`–`10.0` in `0.5` steps |
+| `is_warmup` | Boolean | `true` excludes this set from all stats, PRs, and 1RM |
+| `created_at` | Timestamptz | Log timestamp |
+
+Sets can only be added to an active (in-progress) workout. Once a workout is finished, all its sets become immutable.
+
+<Note>
+The `is_warmup` flag is the single most important quality gate in the data model. All analytics depend on it being set correctly. Warmup sets are stored but contribute nothing to volume, PRs, or 1RM estimates.
+</Note>
+
+## Soft-delete strategy
+
+| Resource | Delete strategy | Reason |
+|---|---|---|
+| User | Soft — `is_active = false` | Preserves all training history |
+| Exercise | Soft — `is_archived = true` | Preserves set history linked to it |
+| Routine | Soft — `is_active = false` | Preserves workout history linked to it |
+| Workout | Hard (only if no sets) | No history to preserve |
+| Set | Hard | Raw data — deletion is intentional |
+| Refresh token | Logical revocation — `revoked_at` | Audit trail for security |
+
+## Naming uniqueness
+
+| Resource | Scope | Case-sensitive | Applies among |
+|---|---|---|---|
+| Exercise `name` | Per user | No | Active only (`is_archived = false`) |
+| Routine `name` | Per user | No | Active only (`is_active = true`) |
+| User `email` | Global | No | All users |
+
+## Further reading
+
+<CardGroup cols={2}>
+  <Card title="Progressive overload" icon="arrow-trend-up" href="/concepts/progressive-overload">
+    The core philosophy and the training loop
+  </Card>
+  <Card title="Analytics" icon="chart-line" href="/concepts/analytics">
+    Volume, personal records, 1RM, and progression history
+  </Card>
+</CardGroup>
